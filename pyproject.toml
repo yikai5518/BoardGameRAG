@@ -4,6 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["Eric Fan <yikai5518@gmail.com>"]
 readme = "README.md"
+packages = [{include = "chatbot", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"
