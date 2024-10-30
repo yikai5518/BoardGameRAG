@@ -14,7 +14,6 @@ repos:
     hooks:
       - id: poetry-check
       - id: poetry-lock
-      - id: poetry-export
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.16.1
     hooks:
