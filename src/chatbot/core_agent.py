@@ -55,6 +55,6 @@ class Chatbot(BaseModel):
             },
         }
 
-        init_state = ChatbotState(messages=[HumanMessage(content=user_query)])
+        init_state = ChatbotState(messages=[HumanMessage(content=user_query)], user_query=user_query)
         response = self._graph.invoke(init_state, config)
         return response["messages"][-1].content
