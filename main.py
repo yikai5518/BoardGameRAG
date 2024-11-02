@@ -4,14 +4,14 @@ import streamlit as st
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage
 
-from src.chatbot import CoreAgent
+from src.chatbot import Chatbot
 
 load_dotenv()
 
 st.set_page_config(page_title="Board Game RAG")
 st.title("Board Game RAG")
 
-agent = CoreAgent(api_key=os.environ["API_KEY"])
+agent = Chatbot(api_key=os.environ["API_KEY"])
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
@@ -38,6 +38,6 @@ if prompt is not None and prompt != "":
 
     if not isinstance(st.session_state.messages[-1], AIMessage):
         with st.chat_message("assistant"):
-            # use .write() method for non-streaming, which means .invoke() method in chain
-            response = st.write_stream(agent.get_response(prompt, st.session_state.messages))
+            response = agent(prompt)
+            st.write(response)
         st.session_state.messages.append(AIMessage(content=response))

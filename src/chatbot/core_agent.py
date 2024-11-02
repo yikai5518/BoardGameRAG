@@ -1,20 +1,24 @@
-from typing import Any, Iterator
+from typing import Any
 
-from langchain_core.messages import BaseMessage
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, SecretStr
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import END, START, StateGraph
+from pydantic import BaseModel, PrivateAttr, SecretStr
+
+from .state import ChatbotState
 
 
-class CoreAgent(BaseModel):
+class Chatbot(BaseModel):
     api_key: SecretStr
 
     model: str = "gpt-4o-mini"
     temperature: int = 0
     max_tokens: int = 1000
 
-    _llm_client: ChatOpenAI
+    _llm_client: ChatOpenAI = PrivateAttr()
+    _graph: Any = PrivateAttr()
+    _memory: MemorySaver = MemorySaver()
 
     def model_post_init(self, __context: Any) -> None:
         self._llm_client = ChatOpenAI(
@@ -24,19 +28,33 @@ class CoreAgent(BaseModel):
             max_tokens=self.max_tokens,
         )
 
-    def get_response(self, user_query: str, conversation_history: list[BaseMessage]) -> Iterator[str]:
-        prompt_template = """You are an AI Assistant. Answer the following question considering the history.
+        # Define graph
+        graph_compiler = StateGraph(ChatbotState)
+        graph_compiler.add_node("chatbot", self.invoke_chatbot)
 
-        Chat History: {conversation_history}
+        graph_compiler.add_edge(START, "chatbot")
+        graph_compiler.add_edge("chatbot", END)
+
+        self._graph = graph_compiler.compile(checkpointer=self._memory)
+
+    def invoke_chatbot(self, state: ChatbotState) -> ChatbotState:
+        user_query = state.messages[-1].content
+        prompt = f"""You are an expert in board games. Extract the name of the board game relevant to this user query.
 
         User Query: {user_query}"""
 
-        prompt = ChatPromptTemplate.from_template(prompt_template)
-        chain = prompt | self._llm_client | StrOutputParser()
+        result = self._llm_client.invoke(prompt)
+        state.messages.append(result)
 
-        return chain.stream(
-            {
-                "conversation_history": conversation_history,
-                "user_query": user_query,
-            }
-        )
+        return state
+
+    def __call__(self, user_query: str) -> str:
+        config = {
+            "configurable": {
+                "thread_id": "1",
+            },
+        }
+
+        init_state = ChatbotState(messages=[HumanMessage(content=user_query)])
+        response = self._graph.invoke(init_state, config)
+        return response["messages"][-1].content

@@ -1,5 +1,5 @@
-from core_agent import CoreAgent
+from .core_agent import Chatbot
 
 __all__ = [
-    "CoreAgent",
+    "Chatbot",
 ]
